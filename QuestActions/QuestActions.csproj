@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.7.28.0</Version>
+    <Version>0.7.29.0</Version>
     <Author>AHHH REPTAR</Author>
     <Name>Quest Actions</Name>
     <Punchline>Quest-action hotbar for items, emotes, and required dialogue.</Punchline>
