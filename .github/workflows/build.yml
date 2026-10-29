@@ -1,0 +1,41 @@
+
+name: Build Quest Actions
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build plugin
+        run: dotnet build QuestActions/QuestActions.csproj --configuration Release
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuestActions-build
+          path: |
+            QuestActions/bin/Release/
+            !QuestActions/bin/Release/**/*.pdb
+          if-no-files-found: error
