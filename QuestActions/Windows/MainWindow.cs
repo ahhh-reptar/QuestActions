@@ -1101,6 +1101,31 @@ internal sealed class MainWindow : Window, IDisposable
         }
     }
 
+        var target = new Vector2(MathF.Ceiling(width), MathF.Ceiling(height));
+        var current = ImGui.GetWindowSize();
+        if (MathF.Abs(current.X - target.X) > 1f || MathF.Abs(current.Y - target.Y) > 1f)
+        {
+            var pos = ImGui.GetWindowPos();
+            var growsLeft = configuration.GrowthDirection == BarGrowthDirection.Left
+                || ((configuration.GrowthDirection is BarGrowthDirection.Up or BarGrowthDirection.Down)
+                    && configuration.SecondaryGrowthDirection == BarGrowthDirection.Left);
+            var growsUp = configuration.GrowthDirection == BarGrowthDirection.Up
+                || ((configuration.GrowthDirection is BarGrowthDirection.Left or BarGrowthDirection.Right)
+                    && configuration.SecondaryGrowthDirection == BarGrowthDirection.Up);
+            if (growsLeft)
+                pos.X += current.X - target.X;
+            if (growsUp)
+                pos.Y += current.Y - target.Y;
+            ImGui.SetWindowPos(pos, ImGuiCond.Always);
+            ImGui.SetWindowSize(target, ImGuiCond.Always);
+            previousSize = target;
+        }
+        else
+        {
+            previousSize = current;
+        }
+    }
+
     private void DrawIconButton(KeyItemEntry entry)
     {
         var isSelected = selectedItemId == entry.ItemId;
