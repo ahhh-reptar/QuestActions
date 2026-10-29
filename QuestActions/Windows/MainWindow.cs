@@ -55,6 +55,7 @@ internal sealed class MainWindow : Window, IDisposable
     private bool lastUseKeyDown;
     private string scanStatus = "Scanning…";
     private Vector2 previousSize = new(300, 100);
+    private bool hasPreviousSize;
     private bool resetPositionRequested;
 
     private const ImGuiWindowFlags BaseWindowFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
@@ -1078,32 +1079,18 @@ internal sealed class MainWindow : Window, IDisposable
 
         var target = new Vector2(MathF.Ceiling(width), MathF.Ceiling(height));
         var current = ImGui.GetWindowSize();
-        if (MathF.Abs(current.X - target.X) > 1f || MathF.Abs(current.Y - target.Y) > 1f)
-        {
-            var pos = ImGui.GetWindowPos();
-            var growsLeft = configuration.GrowthDirection == BarGrowthDirection.Left
-                || ((configuration.GrowthDirection is BarGrowthDirection.Up or BarGrowthDirection.Down)
-                    && configuration.SecondaryGrowthDirection == BarGrowthDirection.Left);
-            var growsUp = configuration.GrowthDirection == BarGrowthDirection.Up
-                || ((configuration.GrowthDirection is BarGrowthDirection.Left or BarGrowthDirection.Right)
-                    && configuration.SecondaryGrowthDirection == BarGrowthDirection.Up);
-            if (growsLeft)
-                pos.X += current.X - target.X;
-            if (growsUp)
-                pos.Y += current.Y - target.Y;
-            ImGui.SetWindowPos(pos, ImGuiCond.Always);
-            ImGui.SetWindowSize(target, ImGuiCond.Always);
-            previousSize = target;
-        }
-        else
-        {
-            previousSize = current;
-        }
-    }
 
-        var target = new Vector2(MathF.Ceiling(width), MathF.Ceiling(height));
-        var current = ImGui.GetWindowSize();
-        if (MathF.Abs(current.X - target.X) > 1f || MathF.Abs(current.Y - target.Y) > 1f)
+        if (!hasPreviousSize)
+        {
+            previousSize = current;
+            hasPreviousSize = true;
+        }
+
+        var sizeChanged =
+            MathF.Abs(previousSize.X - target.X) > 1f ||
+            MathF.Abs(previousSize.Y - target.Y) > 1f;
+
+        if (sizeChanged)
         {
             var pos = ImGui.GetWindowPos();
             var growsLeft = configuration.GrowthDirection == BarGrowthDirection.Left
@@ -1112,18 +1099,22 @@ internal sealed class MainWindow : Window, IDisposable
             var growsUp = configuration.GrowthDirection == BarGrowthDirection.Up
                 || ((configuration.GrowthDirection is BarGrowthDirection.Left or BarGrowthDirection.Right)
                     && configuration.SecondaryGrowthDirection == BarGrowthDirection.Up);
+
             if (growsLeft)
-                pos.X += current.X - target.X;
+                pos.X += previousSize.X - target.X;
             if (growsUp)
-                pos.Y += current.Y - target.Y;
+                pos.Y += previousSize.Y - target.Y;
+
             ImGui.SetWindowPos(pos, ImGuiCond.Always);
-            ImGui.SetWindowSize(target, ImGuiCond.Always);
-            previousSize = target;
         }
-        else
+
+        if (MathF.Abs(current.X - target.X) > 1f ||
+            MathF.Abs(current.Y - target.Y) > 1f)
         {
-            previousSize = current;
+            ImGui.SetWindowSize(target, ImGuiCond.Always);
         }
+
+        previousSize = target;
     }
 
     private void DrawIconButton(KeyItemEntry entry)
