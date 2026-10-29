@@ -1,3 +1,4 @@
+
 name: Build Quest Actions
 
 on:
@@ -37,8 +38,13 @@ jobs:
           Expand-Archive -Path dalamud.zip -DestinationPath $dalamudDir -Force
           Remove-Item dalamud.zip
 
-      - name: Build plugin
+      - name: Build development version
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: dotnet build QuestActions/QuestActions.csproj --configuration Release
+
+      - name: Build release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: dotnet build QuestActions/QuestActions.csproj --configuration Release -p:Version=0.8.${{ github.run_number }}.0
 
       - name: Upload build output
         uses: actions/upload-artifact@v4
@@ -56,3 +62,52 @@ jobs:
           name: Quest Actions ${{ github.ref_name }}
           generate_release_notes: true
           files: QuestActions/bin/Release/**/latest.zip
+          overwrite_files: true
+
+      - name: Read compiled assembly version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem "QuestActions/bin/Release" -Filter "QuestActions.dll" -Recurse |
+            Select-Object -First 1
+
+          if (-not $dll) {
+            throw "QuestActions.dll was not found in the Release output."
+          }
+
+          $version = [System.Reflection.AssemblyName]::GetAssemblyName($dll.FullName).Version.ToString()
+          "PLUGIN_VERSION=$version" >> $env:GITHUB_ENV
+          Write-Host "Compiled assembly version: $version"
+
+      - name: Check out BigAlsToyBarn
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/checkout@v4
+        with:
+          repository: ahhh-reptar/BigAlsToyBarn
+          token: ${{ secrets.BIGALSTOYBARN_TOKEN }}
+          path: BigAlsToyBarn
+
+      - name: Update pluginmaster.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $manifestPath = "BigAlsToyBarn/pluginmaster.json"
+          $manifest = @(Get-Content $manifestPath -Raw | ConvertFrom-Json)
+
+          $plugin = $manifest | Where-Object { $_.InternalName -eq "QuestActions" }
+
+          if (-not $plugin) {
+            throw "QuestActions was not found in pluginmaster.json."
+          }
+
+          $plugin.AssemblyVersion = $env:PLUGIN_VERSION
+          $plugin.LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds().ToString()
+
+          $manifest | ConvertTo-Json -Depth 100 |
+            Set-Content -Path $manifestPath -Encoding utf8
+
+          git -C BigAlsToyBarn config user.name "github-actions[bot]"
+          git -C BigAlsToyBarn config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C BigAlsToyBarn add pluginmaster.json
+          git -C BigAlsToyBarn commit -m "Update QuestActions to $env:PLUGIN_VERSION"
+          git -C BigAlsToyBarn push
