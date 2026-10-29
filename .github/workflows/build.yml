@@ -87,24 +87,35 @@ jobs:
           token: ${{ secrets.BIGALSTOYBARN_TOKEN }}
           path: BigAlsToyBarn
 
+      
       - name: Update pluginmaster.json
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
           $manifestPath = "BigAlsToyBarn/pluginmaster.json"
-          $manifest = @(Get-Content $manifestPath -Raw | ConvertFrom-Json)
+          $json = Get-Content $manifestPath -Raw | ConvertFrom-Json -NoEnumerate
 
-          $plugin = $manifest | Where-Object { $_.InternalName -eq "QuestActions" }
-
-          if (-not $plugin) {
-            throw "QuestActions was not found in pluginmaster.json."
+          if ($json -isnot [array]) {
+            throw "pluginmaster.json must contain a top-level JSON array. Refusing to rewrite it."
           }
 
-          $plugin.AssemblyVersion = $env:PLUGIN_VERSION
-          $plugin.LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds().ToString()
+          $matches = @($json | Where-Object { $_.InternalName -eq "QuestActions" })
 
-          $manifest | ConvertTo-Json -Depth 100 |
-            Set-Content -Path $manifestPath -Encoding utf8
+          if ($matches.Count -ne 1) {
+            throw "Expected exactly one QuestActions entry; found $($matches.Count)."
+          }
+
+          $matches[0].AssemblyVersion = $env:PLUGIN_VERSION
+          $matches[0].LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds().ToString()
+
+          $updatedJson = ConvertTo-Json -InputObject $json -Depth 100
+          $parsedAgain = ConvertFrom-Json -InputObject $updatedJson -NoEnumerate
+
+          if ($parsedAgain -isnot [array]) {
+            throw "Serialization validation failed: output is not a JSON array."
+          }
+
+          $updatedJson | Set-Content -Path $manifestPath -Encoding utf8
 
           git -C BigAlsToyBarn config user.name "github-actions[bot]"
           git -C BigAlsToyBarn config user.email "41898282+github-actions[bot]@users.noreply.github.com"
