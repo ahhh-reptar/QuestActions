@@ -465,24 +465,42 @@ internal sealed class MainWindow : Window, IDisposable
                         continue;
                     }
                     
-                    var hasLeveObjective = false;
+                    var isAcceptedLeve = false;
+                    var leveWorks = questManager->LeveQuests;
                     
-                    for (var objectiveIndex = 0; objectiveIndex < objectiveCount; objectiveIndex++)
+                    for (var leveSlot = 0; leveSlot < leveWorks.Length; leveSlot++)
                     {
-                        ref var objective = ref trackedQuest.Objectives[objectiveIndex];
+                        ref var leveWork = ref leveWorks[leveSlot];
                     
-                        if (string.Equals(
-                                objective.Objective.ToString().Trim(),
-                                "Carry out leve objectives.",
-                                StringComparison.OrdinalIgnoreCase))
+                        if (leveWork.LeveId == 0)
+                            continue;
+                    
+                        if (trackedQuest.QuestId == leveWork.LeveId)
                         {
-                            hasLeveObjective = true;
+                            isAcceptedLeve = true;
                             break;
                         }
                     }
                     
-                    if (!hasLeveObjective)
+                    if (!isAcceptedLeve)
                         continue;
+                    
+                    if (trackedQuest.CurrentObjective < 0 ||
+                        trackedQuest.CurrentObjective >= objectiveCount)
+                    {
+                        continue;
+                    }
+                    
+                    ref var currentObjective =
+                        ref trackedQuest.Objectives[trackedQuest.CurrentObjective];
+                    
+                    if (!string.Equals(
+                            currentObjective.Objective.ToString().Trim(),
+                            "Carry out leve objectives.",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
                     
                     if (string.IsNullOrWhiteSpace(leveTitle))
                         leveTitle = $"Levequest {trackedQuest.LeveDataId}";
