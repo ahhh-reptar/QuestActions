@@ -342,6 +342,8 @@ internal sealed class MainWindow : Window, IDisposable
             Plugin.Log.Debug(ex, "QIA could not discover emote objectives from accepted quests.");
         }
 
+        RefreshLevequestEmoteButtons();
+
         var activeKeys = questEmoteButtons.Select(GetEmoteKey).ToHashSet(StringComparer.Ordinal);
         foreach (var id in emoteCooldowns.Keys.Where(id => !questEmoteButtons.Any(x => x.EmoteId == id)).ToList())
             emoteCooldowns.Remove(id);
@@ -359,6 +361,78 @@ internal sealed class MainWindow : Window, IDisposable
 
         UpdateAutomaticSelection();
     }
+    
+    private unsafe void RefreshLevequestEmoteButtons()
+    {
+        try
+        {
+            var uiState = UIState.Instance();
+            if (uiState == null)
+                return;
+    
+            var trackedQuests = uiState->QuestTodoList.Todo.TrackedQuests;
+            for (var questIndex = 0; questIndex < trackedQuests.Count; questIndex++)
+            {
+                ref var trackedQuest = ref trackedQuests[questIndex];
+    
+                // A nonzero LeveDataId identifies a tracked levequest.
+                if (trackedQuest.LeveDataId <= 0)
+                    continue;
+    
+                var leveTitle = trackedQuest.Name.ToString();
+                if (string.IsNullOrWhiteSpace(leveTitle))
+                    leveTitle = $"Levequest {trackedQuest.LeveDataId}";
+    
+                var objectiveCount = Math.Clamp(trackedQuest.ObjectivesCount, 0, 24);
+    
+                for (var objectiveIndex = 0; objectiveIndex < objectiveCount; objectiveIndex++)
+                {
+                    ref var objective = ref trackedQuest.Objectives[objectiveIndex];
+    
+                    if (objective.IsTodoChecked)
+                        continue;
+    
+                    var objectiveText = objective.Objective.ToString();
+                    if (string.IsNullOrWhiteSpace(objectiveText))
+                        continue;
+    
+                    foreach (Match match in SlashCommandRegex.Matches(objectiveText))
+                    {
+                        var command = match.Groups[1].Value;
+                        var emote = ResolveEmoteByCommand(command);
+                        if (emote == null)
+                            continue;
+    
+                        if (!questEmoteButtons.Any(x =>
+                            x.QuestId == 0 &&
+                            string.Equals(x.QuestTitle, leveTitle, StringComparison.Ordinal) &&
+                            string.Equals(x.Command, emote.Command, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            questEmoteButtons.Add(new QuestEmoteEntry(
+                                emote.EmoteId,
+                                emote.IconId,
+                                emote.Command,
+                                emote.Name,
+                                leveTitle,
+                                0));
+                            
+                            Plugin.Log.Debug(
+                                "[QIA-LEVE] Found emote objective {Command} for levequest '{LeveTitle}' (LeveDataId {LeveDataId}, objective {ObjectiveIndex}).",
+                                emote.Command,
+                                leveTitle,
+                                trackedQuest.LeveDataId,
+                                objectiveIndex);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Debug(ex, "[QIA-LEVE] Could not read native levequest objectives.");
+        }
+    }
+
 
     private string? ResolveQuestSayMessage(string questTitle, string questDetail)
     {
