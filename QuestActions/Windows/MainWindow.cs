@@ -371,6 +371,35 @@ internal sealed class MainWindow : Window, IDisposable
         {
             var uiState = UIState.Instance();
             var diagnostic = new StringBuilder();
+
+            var questManager = QuestManager.Instance();
+
+            if (questManager == null)
+            {
+                diagnostic.AppendLine("[QA-LEVE] QuestManager.Instance() returned null.");
+            }
+            else
+            {
+                var leveWorks = questManager->LeveQuests;
+            
+                diagnostic.AppendLine(
+                    $"[QA-LEVE] Accepted leve count: {questManager->NumAcceptedLeveQuests}");
+            
+                for (var leveSlot = 0; leveSlot < leveWorks.Length; leveSlot++)
+                {
+                    ref var leveWork = ref leveWorks[leveSlot];
+            
+                    if (leveWork.LeveId == 0)
+                        continue;
+            
+                    diagnostic.AppendLine(
+                        $"[QA-LEVE] Native leve slot {leveSlot}: " +
+                        $"LeveId={leveWork.LeveId}, " +
+                        $"Sequence={leveWork.Sequence}, " +
+                        $"Flags={leveWork.Flags}, " +
+                        $"ClearClass={leveWork.ClearClass}");
+                }
+            }
     
             if (uiState == null)
             {
@@ -419,9 +448,29 @@ internal sealed class MainWindow : Window, IDisposable
                             diagnostic, "ProgressText", progressText);
                     }
     
-                    if (trackedQuest.LeveDataId <= 0)
+                    if (trackedQuest.LeveDataId <= 0 ||
+                        trackedQuest.LeveDataId > ushort.MaxValue ||
+                        questManager == null)
+                    {
                         continue;
-    
+                    }
+                    
+                    var leveId = (ushort)trackedQuest.LeveDataId;
+                    var leveWork = questManager->GetLeveQuestById(leveId);
+                    
+                    if (leveWork == null || leveWork->LeveId != leveId)
+                    {
+                        diagnostic.AppendLine(
+                            $"[QA-LEVE] No accepted native LeveWork record found for " +
+                            $"Duty List LeveDataId={trackedQuest.LeveDataId}.");
+                    
+                        continue;
+                    }
+                    
+                    diagnostic.AppendLine(
+                        $"[QA-LEVE] Matched Duty List entry '{leveTitle}' to native leve " +
+                        $"{leveWork->LeveId}, Sequence={leveWork->Sequence}.");
+                    
                     if (string.IsNullOrWhiteSpace(leveTitle))
                         leveTitle = $"Levequest {trackedQuest.LeveDataId}";
     
