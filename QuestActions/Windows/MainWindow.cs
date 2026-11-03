@@ -422,7 +422,12 @@ internal sealed class MainWindow : Window, IDisposable
                     diagnostic.AppendLine(
                         $"[QA-LEVE] Tracked quest {questIndex}: " +
                         $"LeveDataId={trackedQuest.LeveDataId}, " +
-                        $"Name='{leveTitle}', ObjectivesCount={trackedQuest.ObjectivesCount}");
+                        $"QuestId={trackedQuest.QuestId}, " +
+                        $"Sequence={trackedQuest.Sequence}, " +
+                        $"CurrentObjective={trackedQuest.CurrentObjective}, " +
+                        $"LeveAssignmentType={trackedQuest.LeveAssignmentType}, " +
+                        $"Name='{leveTitle}', " +
+                        $"ObjectivesCount={trackedQuest.ObjectivesCount}");
     
                     for (var objectiveIndex = 0; objectiveIndex < objectiveCount; objectiveIndex++)
                     {
@@ -433,7 +438,13 @@ internal sealed class MainWindow : Window, IDisposable
     
                         diagnostic.AppendLine(
                             $"[QA-LEVE]   Objective {objectiveIndex}: " +
-                            $"Checked={objective.IsTodoChecked}");
+                            $"Checked={objective.IsTodoChecked}, " +
+                            $"Sequence={objective.Sequence}, " +
+                            $"TodoArg0={objective.TodoArg0}, " +
+                            $"TodoArg1={objective.TodoArg1}, " +
+                            $"TodoArg2={objective.TodoArg2}, " +
+                            $"ToDoParamCountableNum={objective.ToDoParamCountableNum}, " +
+                            $"TerritoryTypeId={objective.TerritoryTypeId}");
     
                         diagnostic.AppendLine(
                             $"[QA-LEVE]     Objective='{objectiveText}'");
