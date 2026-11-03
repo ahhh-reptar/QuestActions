@@ -21,8 +21,8 @@ public sealed unsafe class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
 
-    private const string CommandName = "/qia";
-    private readonly WindowSystem windowSystem = new("QuestItemAssistant");
+    private const string CommandName = "/qa";
+    private readonly WindowSystem windowSystem = new("QuestActions");
     private readonly MainWindow hotbar;
     private readonly SettingsWindow settings;
     private readonly Configuration configuration;
@@ -64,7 +64,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Toggle the Quest Actions bar; '/qia config' opens settings."
+            HelpMessage = "Toggle the Quest Actions bar; '/qa config' opens settings."
         });
 
         Log.Information("Quest Actions loaded. Hotbar visible: {Visible}.", hotbar.IsOpen);
