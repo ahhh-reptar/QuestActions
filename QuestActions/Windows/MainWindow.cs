@@ -448,24 +448,30 @@ internal sealed class MainWindow : Window, IDisposable
                             diagnostic, "ProgressText", progressText);
                     }
     
-                    if (trackedQuest.LeveDataId <= 0 ||
-                        trackedQuest.LeveDataId > ushort.MaxValue ||
-                        questManager == null)
+                    if (questManager == null ||
+                        questManager->NumAcceptedLeveQuests == 0)
                     {
                         continue;
                     }
                     
-                    var leveId = (ushort)trackedQuest.LeveDataId;
-                    var leveWork = questManager->GetLeveQuestById(leveId);
+                    var hasLeveObjective = false;
                     
-                    if (leveWork == null || leveWork->LeveId != leveId)
+                    for (var objectiveIndex = 0; objectiveIndex < objectiveCount; objectiveIndex++)
                     {
-                        diagnostic.AppendLine(
-                            $"[QA-LEVE] No accepted native LeveWork record found for " +
-                            $"Duty List LeveDataId={trackedQuest.LeveDataId}.");
+                        ref var objective = ref trackedQuest.Objectives[objectiveIndex];
                     
-                        continue;
+                        if (string.Equals(
+                                objective.Objective.ToString().Trim(),
+                                "Carry out leve objectives.",
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            hasLeveObjective = true;
+                            break;
+                        }
                     }
+                    
+                    if (!hasLeveObjective)
+                        continue;
                     
                     diagnostic.AppendLine(
                         $"[QA-LEVE] Matched Duty List entry '{leveTitle}' to native leve " +
