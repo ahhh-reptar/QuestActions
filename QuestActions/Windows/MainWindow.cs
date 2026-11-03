@@ -473,10 +473,6 @@ internal sealed class MainWindow : Window, IDisposable
                     if (!hasLeveObjective)
                         continue;
                     
-                    diagnostic.AppendLine(
-                        $"[QA-LEVE] Matched Duty List entry '{leveTitle}' to native leve " +
-                        $"{leveWork->LeveId}, Sequence={leveWork->Sequence}.");
-                    
                     if (string.IsNullOrWhiteSpace(leveTitle))
                         leveTitle = $"Levequest {trackedQuest.LeveDataId}";
     
