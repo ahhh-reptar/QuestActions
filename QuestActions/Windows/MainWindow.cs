@@ -39,7 +39,7 @@ internal sealed class MainWindow : Window, IDisposable
     private Dictionary<string, EmoteCommandMetadata>? emoteCommandIndex;
     private Dictionary<string, string> emoteAliases = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, uint> questRuntimeIdCache = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string?> questSayMessageCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<string>> questSayMessageCache = new(StringComparer.Ordinal);
     private readonly Dictionary<uint, Dictionary<int, string>> questObjectiveTextCache = new();
     private string? questObjectiveTextCacheLanguage;
     private readonly Dictionary<uint, DateTime> emoteCooldowns = new();
@@ -512,7 +512,7 @@ internal sealed class MainWindow : Window, IDisposable
         var languageName = Plugin.ClientState.ClientLanguage.ToString();
         var cacheKey = questTitle + "\0" + questDetail + "\0" + languageName;
         if (questSayMessageCache.TryGetValue(cacheKey, out var cached))
-            return string.IsNullOrWhiteSpace(cached) ? new List<string>() : new List<string> { cached };
+            return cached;
 
         var results = new List<string>();
         try
@@ -575,8 +575,7 @@ internal sealed class MainWindow : Window, IDisposable
             Plugin.Log.Debug(ex, "QA could not resolve required quest /say phrases for quest '{QuestTitle}'.", questTitle);
         }
 
-        // The legacy cache stores one string; an empty value marks an unsuccessful lookup.
-        questSayMessageCache[cacheKey] = results.FirstOrDefault();
+        questSayMessageCache[cacheKey] = results;
         return results;
     }
 
