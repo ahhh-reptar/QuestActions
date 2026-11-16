@@ -383,6 +383,12 @@ internal sealed class MainWindow : Window, IDisposable
                 ref var trackedQuest = ref trackedQuests[questIndex];
 
                 var leveDataId = trackedQuest.LeveDataId;
+                Plugin.Log.Debug(
+                    "[QA-LEVE] Active leve: '{Name}', QuestId={QuestId}, LeveDataId={LeveDataId}, AssignmentType={AssignmentType}",
+                    trackedQuest.Name.ToString(),
+                    trackedQuest.QuestId,
+                    trackedQuest.LeveDataId,
+                    trackedQuest.LeveAssignmentType);
                 if (leveDataId <= 0 || trackedQuest.LeveAssignmentType != 1)
                     continue;
 
