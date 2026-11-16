@@ -382,44 +382,23 @@ internal sealed class MainWindow : Window, IDisposable
             {
                 ref var trackedQuest = ref trackedQuests[questIndex];
 
-                var runtimeQuestId = trackedQuest.QuestId;
-                if (runtimeQuestId == 0 || trackedQuest.LeveAssignmentType != 1)
+                var leveDataId = trackedQuest.LeveDataId;
+                if (leveDataId <= 0 || trackedQuest.LeveAssignmentType != 1)
                     continue;
 
-                var objectiveCount = Math.Clamp(trackedQuest.ObjectivesCount, 0, 24);
-                var hasActiveLeveObjective = false;
-
-                for (var objectiveIndex = 0; objectiveIndex < objectiveCount; objectiveIndex++)
-                {
-                    ref var objective = ref trackedQuest.Objectives[objectiveIndex];
-                    if (!objective.IsTodoChecked &&
-                        string.Equals(
-                            objective.Objective.ToString().Trim(),
-                            "Carry out leve objectives.",
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        hasActiveLeveObjective = true;
-                        break;
-                    }
-                }
-
-                if (!hasActiveLeveObjective)
-                    continue;
-
+                var questId = (uint)trackedQuest.QuestId;
                 var leveTitle = trackedQuest.Name.ToString();
                 if (string.IsNullOrWhiteSpace(leveTitle))
-                    leveTitle = $"Levequest {runtimeQuestId}";
+                    leveTitle = $"Battle leve {leveDataId}";
 
-                // BattleLeve row IDs are the runtime leve IDs. Its Objectives array
-                // links directly to LeveString rows; leve objectives are not stored
-                // in the normal quest/<folder>/<id> QuestDialogue sheets.
-                var battleLeve = battleLeveSheet.GetRowOrDefault(runtimeQuestId);
+                var battleLeve = battleLeveSheet.GetRowOrDefault((uint)leveDataId);
                 if (!battleLeve.HasValue)
                 {
                     Plugin.Log.Debug(
-                        "[QA-LEVE] Could not find BattleLeve row for active leve '{LeveTitle}' (row {LeveId}).",
+                        "[QA-LEVE] Could not find BattleLeve row {LeveDataId} for active leve '{LeveTitle}' (tracked QuestId {QuestId}).",
+                        leveDataId,
                         leveTitle,
-                        runtimeQuestId);
+                        questId);
                     continue;
                 }
 
@@ -441,7 +420,7 @@ internal sealed class MainWindow : Window, IDisposable
                             continue;
 
                         if (!questEmoteButtons.Any(x =>
-                            x.QuestId == runtimeQuestId &&
+                            x.QuestTitle == leveTitle &&
                             string.Equals(x.Command, emote.Command, StringComparison.OrdinalIgnoreCase)))
                         {
                             questEmoteButtons.Add(new QuestEmoteEntry(
@@ -450,13 +429,13 @@ internal sealed class MainWindow : Window, IDisposable
                                 emote.Command,
                                 emote.Name,
                                 leveTitle,
-                                runtimeQuestId));
+                                questId));
 
                             Plugin.Log.Debug(
-                                "[QA-LEVE] Found emote objective {Command} for battle leve '{LeveTitle}' (BattleLeve {LeveId}, LeveString {LeveStringId}).",
+                                "[QA-LEVE] Found emote objective {Command} for battle leve '{LeveTitle}' (BattleLeve {LeveDataId}, LeveString {LeveStringId}).",
                                 emote.Command,
                                 leveTitle,
-                                runtimeQuestId,
+                                leveDataId,
                                 objectiveRef.RowId);
                         }
                     }
