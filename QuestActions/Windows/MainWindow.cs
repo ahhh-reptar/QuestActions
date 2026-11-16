@@ -392,7 +392,8 @@ internal sealed class MainWindow : Window, IDisposable
                     questId,
                     assignmentType);
 
-                if (questId == 0 || assignmentType is not (1 or 13 or 14 or 15))
+                if (questId == 0 || assignmentType is not (1 or 13 or 14 or 15) ||
+                    !IsQuestAllowedByZone(questId))
                     continue;
 
                 if (string.IsNullOrWhiteSpace(leveTitle))
@@ -1175,56 +1176,135 @@ internal sealed class MainWindow : Window, IDisposable
     private Dictionary<uint, float> GetQuestObjectiveDistances()
     {
         var distances = new Dictionary<uint, float>();
+        var player = Plugin.ObjectTable.LocalPlayer;
+        if (player == null)
+            return distances;
+
+        var territoryId = Plugin.ClientState.TerritoryType;
+        var position = player.Position;
+
+        questsWithKnownZone.Clear();
+        questsInCurrentZone.Clear();
+
         try
         {
-            var player = Plugin.ObjectTable.LocalPlayer;
-            if (player == null)
-            {
-                return distances;
-            }
-
-            var territoryId = Plugin.ClientState.TerritoryType;
-            var position = player.Position;
-
-            questsWithKnownZone.Clear();
-            questsInCurrentZone.Clear();
             unsafe
             {
                 var nativeMap = FFXIVClientStructs.FFXIV.Client.Game.UI.Map.Instance();
-                if (nativeMap == null)
+                if (nativeMap != null)
                 {
-                        return distances;
-                }
-
-                foreach (var group in nativeMap->QuestMarkers)
-                {
-                    var questId = group.ObjectiveId;
-                    if (questId == 0) continue;
-
-                    var markerData = group.MarkerData.ToList<MapMarkerData>();
-                    if (markerData.Count > 0)
-                        questsWithKnownZone.Add(questId);
-
-                    foreach (var marker in markerData)
+                    foreach (var group in nativeMap->QuestMarkers)
                     {
-                        if (marker.TerritoryTypeId != territoryId) continue;
+                        var questId = group.ObjectiveId;
+                        if (questId == 0) continue;
 
-                        questsInCurrentZone.Add(questId);
-                        if (!group.ShouldRender) continue;
-                        var dx = marker.Position.X - position.X;
-                        var dz = marker.Position.Z - position.Z;
-                        var distanceSquared = dx * dx + dz * dz;
-                        if (!distances.TryGetValue(questId, out var existing) || distanceSquared < existing)
-                            distances[questId] = distanceSquared;
+                        var markerData = group.MarkerData.ToList<MapMarkerData>();
+                        if (markerData.Count > 0)
+                            questsWithKnownZone.Add(questId);
+
+                        foreach (var marker in markerData)
+                        {
+                            if (marker.TerritoryTypeId != territoryId) continue;
+
+                            questsInCurrentZone.Add(questId);
+                            if (!group.ShouldRender) continue;
+                            var dx = marker.Position.X - position.X;
+                            var dz = marker.Position.Z - position.Z;
+                            var distanceSquared = dx * dx + dz * dz;
+                            if (!distances.TryGetValue(questId, out var existing) || distanceSquared < existing)
+                                distances[questId] = distanceSquared;
+                        }
                     }
                 }
             }
-
         }
         catch (Exception ex)
         {
-            Plugin.Log.Debug(ex, "QA could not resolve native quest objective distances; preserving inventory order for unresolved items.");
+            Plugin.Log.Debug(ex, "QA could not resolve native quest objective distances.");
         }
+
+        try
+        {
+            unsafe
+            {
+                var uiState = UIState.Instance();
+                var questManager = QuestManager.Instance();
+                if (uiState == null || questManager == null || questManager->NumAcceptedLeveQuests == 0)
+                    return distances;
+
+                var leveSheet = Plugin.DataManager.GetExcelSheet<Leve>();
+                var territorySheet = Plugin.DataManager.GetExcelSheet<TerritoryType>();
+                var currentTerritory = territorySheet.GetRowOrDefault(territoryId);
+                var currentPlaceNameZoneId = currentTerritory.HasValue
+                    ? currentTerritory.Value.PlaceNameZone.RowId
+                    : 0u;
+                var trackedQuests = uiState->QuestTodoList.Todo.TrackedQuests;
+
+                for (var questIndex = 0; questIndex < trackedQuests.Count; questIndex++)
+                {
+                    ref var trackedQuest = ref trackedQuests[questIndex];
+                    var questId = (uint)trackedQuest.QuestId;
+                    var assignmentType = trackedQuest.LeveAssignmentType;
+
+                    if (questId == 0 || assignmentType is not (1 or 13 or 14 or 15))
+                        continue;
+
+                    var leve = leveSheet.GetRowOrDefault(questId);
+                    if (!leve.HasValue)
+                        continue;
+
+                    var levelStartRef = leve.Value.LevelStart;
+                    Level levelStart = default;
+                    var hasLevelStart = levelStartRef.RowId != 0 && levelStartRef.TryGetValue(out levelStart);
+
+                    uint leveTerritoryId = 0;
+                    if (hasLevelStart)
+                    {
+                        var mapRef = levelStart.Map;
+                        if (mapRef.RowId != 0 && mapRef.TryGetValue(out var leveMap))
+                        {
+                            var territoryRef = leveMap.TerritoryType;
+                            if (territoryRef.RowId != 0 && territoryRef.TryGetValue(out var leveTerritory))
+                                leveTerritoryId = leveTerritory.RowId;
+                        }
+                    }
+
+                    var placeNameStartZoneId = leve.Value.PlaceNameStartZone.RowId;
+                    if (leveTerritoryId != 0)
+                    {
+                        questsWithKnownZone.Add(questId);
+                        if (leveTerritoryId != territoryId)
+                            continue;
+                    }
+                    else if (placeNameStartZoneId != 0)
+                    {
+                        questsWithKnownZone.Add(questId);
+                        if (currentPlaceNameZoneId == 0 || placeNameStartZoneId != currentPlaceNameZoneId)
+                            continue;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    questsInCurrentZone.Add(questId);
+                    if (!hasLevelStart)
+                        continue;
+
+                    var dx = levelStart.X - position.X;
+                    var dz = levelStart.Z - position.Z;
+                    var distance = MathF.Max(0f, MathF.Sqrt(dx * dx + dz * dz) - MathF.Max(0f, levelStart.Radius));
+                    var distanceSquared = distance * distance;
+                    if (!distances.TryGetValue(questId, out var existing) || distanceSquared < existing)
+                        distances[questId] = distanceSquared;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Debug(ex, "QA could not resolve battle leve start zones or distances.");
+        }
+
         return distances;
     }
 
