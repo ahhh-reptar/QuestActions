@@ -37,9 +37,6 @@ jobs:
           Expand-Archive -Path dalamud.zip -DestinationPath $dalamudDir -Force
           Remove-Item dalamud.zip
 
-      # Keep restore separate from compilation. The Dalamud SDK currently fails
-      # inside NuGet's RestoreTask on CI without surfacing the underlying error
-      # at normal verbosity, so retain a diagnostic log for failed runs.
       - name: Restore dependencies
         shell: pwsh
         run: |
