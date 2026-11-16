@@ -4,6 +4,8 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.IO;
+using System.Text.Json;
 using FFXIVClientStructs.FFXIV.Client.System.String;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -35,8 +37,9 @@ internal sealed class MainWindow : Window, IDisposable
     private readonly List<QuestSayEntry> questSayButtons = new();
     private readonly Dictionary<uint, EmoteMetadata?> emoteMetadataCache = new();
     private Dictionary<string, EmoteCommandMetadata>? emoteCommandIndex;
+    private Dictionary<string, string> emoteAliases = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, uint> questRuntimeIdCache = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string?> questSayMessageCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<string>> questSayMessageCache = new(StringComparer.Ordinal);
     private readonly Dictionary<uint, Dictionary<int, string>> questObjectiveTextCache = new();
     private string? questObjectiveTextCacheLanguage;
     private readonly Dictionary<uint, DateTime> emoteCooldowns = new();
@@ -71,6 +74,7 @@ internal sealed class MainWindow : Window, IDisposable
     {
         this.configuration = configuration;
         this.openSettings = openSettings;
+        LoadEmoteAliases();
         RespectCloseHotkey = false;
         Position = new Vector2(100, 350);
         PositionCondition = ImGuiCond.FirstUseEver;
@@ -301,8 +305,7 @@ internal sealed class MainWindow : Window, IDisposable
                                 !objectiveTexts.TryGetValue(todoIndex, out var objectiveText))
                                 continue;
 
-                            var sayPhrase = ResolveQuestSayMessage(questTitle, objectiveText);
-                            if (!string.IsNullOrWhiteSpace(sayPhrase))
+                            foreach (var sayPhrase in ResolveQuestSayMessages(questTitle, objectiveText))
                             {
                                 var sayKey = $"{runtimeQuestId}:{sayPhrase}";
                                 if (!questSayButtons.Any(x => x.Key == sayKey))
@@ -504,14 +507,14 @@ internal sealed class MainWindow : Window, IDisposable
         }
     }
 
-    private string? ResolveQuestSayMessage(string questTitle, string questDetail)
+    private List<string> ResolveQuestSayMessages(string questTitle, string questDetail)
     {
         var languageName = Plugin.ClientState.ClientLanguage.ToString();
         var cacheKey = questTitle + "\0" + questDetail + "\0" + languageName;
         if (questSayMessageCache.TryGetValue(cacheKey, out var cached))
             return cached;
 
-        string? result = null;
+        var results = new List<string>();
         try
         {
             var quest = Plugin.DataManager.GetExcelSheet<Quest>()
@@ -531,19 +534,37 @@ internal sealed class MainWindow : Window, IDisposable
                         _ => new Regex("“([^”]+)”", RegexOptions.Compiled),
                     };
 
-                    foreach (var dialogue in dialogueSheet)
-                    {
-                        var key = dialogue.Key.ToString();
-                        if (!Regex.IsMatch(key, "_(SAY|SAYTODO|SYSTEM)_") || dialogue.Value.IsEmpty)
-                            continue;
+                    var quotedPhrases = quoteRegex.Matches(questDetail)
+                        .Cast<Match>()
+                        .SelectMany(match => match.Groups.Cast<Group>().Skip(1))
+                        .Where(group => group.Success)
+                        .Select(group => group.Value)
+                        .ToList();
 
-                        var phrase = dialogue.Value.ToString();
-                        if (quoteRegex.Matches(questDetail).Cast<Match>()
-                            .SelectMany(m => m.Groups.Cast<Group>().Skip(1))
-                            .Any(g => g.Success && g.Value.Contains(phrase, StringComparison.Ordinal)))
+                    if (quotedPhrases.Count > 0)
+                    {
+                        var dialoguePhrases = dialogueSheet
+                            .Where(dialogue =>
+                            {
+                                var key = dialogue.Key.ToString();
+                                return Regex.IsMatch(key, "_(SAY|SAYTODO|SYSTEM)_") && !dialogue.Value.IsEmpty;
+                            })
+                            .Select(dialogue => dialogue.Value.ToString())
+                            .Where(phrase => !string.IsNullOrWhiteSpace(phrase))
+                            .Distinct(StringComparer.Ordinal)
+                            .ToList();
+
+                        // Preserve the order in which the quest asks the player to speak.
+                        foreach (var quoted in quotedPhrases)
                         {
-                            result = phrase;
-                            break;
+                            foreach (var phrase in dialoguePhrases)
+                            {
+                                if (quoted.Contains(phrase, StringComparison.Ordinal) &&
+                                    !results.Contains(phrase, StringComparer.Ordinal))
+                                {
+                                    results.Add(phrase);
+                                }
+                            }
                         }
                     }
                 }
@@ -551,11 +572,11 @@ internal sealed class MainWindow : Window, IDisposable
         }
         catch (Exception ex)
         {
-            Plugin.Log.Debug(ex, "QA could not resolve a required /say phrase for quest '{QuestTitle}'.", questTitle);
+            Plugin.Log.Debug(ex, "QA could not resolve required quest /say phrases for quest '{QuestTitle}'.", questTitle);
         }
 
-        questSayMessageCache[cacheKey] = result;
-        return result;
+        questSayMessageCache[cacheKey] = results;
+        return results;
     }
 
     private uint ResolveQuestRuntimeId(string questTitle)
@@ -583,6 +604,64 @@ internal sealed class MainWindow : Window, IDisposable
 
         questRuntimeIdCache[questTitle] = runtimeQuestId;
         return runtimeQuestId;
+    }
+
+    private static string NormalizeEmoteCommand(string command)
+    {
+        return command.Trim().TrimStart('/').ToLowerInvariant();
+    }
+
+    private void LoadEmoteAliases()
+    {
+        var path = Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "emote-aliases.json");
+
+        try
+        {
+            if (!File.Exists(path))
+            {
+                var defaults = new
+                {
+                    aliases = new Dictionary<string, string>
+                    {
+                        ["sundropdance"] = "sundance",
+                    },
+                };
+
+                File.WriteAllText(path, JsonSerializer.Serialize(defaults, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                }));
+            }
+
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            if (!document.RootElement.TryGetProperty("aliases", out var aliasesElement) ||
+                aliasesElement.ValueKind != JsonValueKind.Object)
+            {
+                Plugin.Log.Warning("[QA-EMOTE] The emote alias file does not contain a valid aliases object: {Path}", path);
+                return;
+            }
+
+            var loadedAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in aliasesElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind != JsonValueKind.String)
+                    continue;
+
+                var alias = NormalizeEmoteCommand(property.Name);
+                var target = NormalizeEmoteCommand(property.Value.GetString() ?? string.Empty);
+                if (alias.Length == 0 || target.Length == 0 || alias == target)
+                    continue;
+
+                loadedAliases[alias] = target;
+            }
+
+            emoteAliases = loadedAliases;
+            Plugin.Log.Debug("[QA-EMOTE] Loaded {AliasCount} emote command aliases.", emoteAliases.Count);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error(ex, "[QA-EMOTE] Failed to load emote aliases from {Path}.", path);
+        }
     }
 
     private EmoteCommandMetadata? ResolveEmoteByCommand(string command)
@@ -613,7 +692,7 @@ internal sealed class MainWindow : Window, IDisposable
                     }
 
                     var name = row.Name.ToString();
-                    index.TryAdd(resolvedCommand, new EmoteCommandMetadata(row.RowId, iconId, resolvedCommand,
+                    index.TryAdd(NormalizeEmoteCommand(resolvedCommand), new EmoteCommandMetadata(row.RowId, iconId, resolvedCommand,
                         string.IsNullOrWhiteSpace(name) ? resolvedCommand : name));
                 }
             }
@@ -625,7 +704,24 @@ internal sealed class MainWindow : Window, IDisposable
             emoteCommandIndex = index;
         }
 
-        return emoteCommandIndex.TryGetValue(command.Trim(), out var metadata) ? metadata : null;
+        var normalizedCommand = NormalizeEmoteCommand(command);
+
+        // Prefer the command explicitly linked by Lumina.
+        if (emoteCommandIndex.TryGetValue(normalizedCommand, out var metadata))
+            return metadata;
+
+        // Aliases are a fallback only; they never override a real Lumina command.
+        if (!emoteAliases.TryGetValue(normalizedCommand, out var targetCommand))
+            return null;
+
+        if (emoteCommandIndex.TryGetValue(targetCommand, out metadata))
+        {
+            Plugin.Log.Debug("[QA-EMOTE] Resolved /{Alias} through alias /{Target}.", normalizedCommand, targetCommand);
+            return metadata;
+        }
+
+        Plugin.Log.Warning("[QA-EMOTE] Alias /{Alias} targets unknown Lumina command /{Target}.", normalizedCommand, targetCommand);
+        return null;
     }
 
     private EmoteMetadata? ResolveEmoteMetadata(uint emoteId)
