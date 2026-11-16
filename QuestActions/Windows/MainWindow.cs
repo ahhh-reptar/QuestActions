@@ -334,12 +334,16 @@ internal sealed class MainWindow : Window, IDisposable
                         }
                     }
                     catch (Exception ex)
-                    {                    }
+                    {
+
+                    }
                 }
             }
         }
         catch (Exception ex)
-        {        }
+        {
+
+        }
 
         RefreshLevequestEmoteButtons();
 
@@ -382,6 +386,8 @@ internal sealed class MainWindow : Window, IDisposable
                 var assignmentType = trackedQuest.LeveAssignmentType;
                 var leveTitle = trackedQuest.Name.ToString();
 
+
+
                 if (questId == 0 || assignmentType is not (1 or 13 or 14 or 15) ||
                     !IsQuestAllowedByZone(questId))
                     continue;
@@ -391,16 +397,22 @@ internal sealed class MainWindow : Window, IDisposable
 
                 var leve = leveSheet.GetRowOrDefault(questId);
                 if (!leve.HasValue)
-                {                    continue;
+                {
+
+                    continue;
                 }
 
                 var dataRef = leve.Value.DataId;
                 if (!dataRef.Is<BattleLeve>())
-                {                    continue;
+                {
+
+                    continue;
                 }
 
                 if (!dataRef.TryGetValue<BattleLeve>(out var battleLeve))
-                {                    continue;
+                {
+
+                    continue;
                 }
 
                 var objectiveRef = battleLeve.Objectives[0];
@@ -430,12 +442,16 @@ internal sealed class MainWindow : Window, IDisposable
                             emote.Name,
                             leveTitle,
                             questId));
+
+
                     }
                 }
             }
         }
         catch (Exception ex)
-        {        }
+        {
+
+        }
     }
 
     private List<string> ResolveQuestSayMessages(string questTitle, string questDetail)
@@ -502,7 +518,9 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {        }
+        {
+
+        }
 
         questSayMessageCache[cacheKey] = results;
         return results;
@@ -527,7 +545,9 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {        }
+        {
+
+        }
 
         questRuntimeIdCache[questTitle] = runtimeQuestId;
         return runtimeQuestId;
@@ -582,7 +602,9 @@ internal sealed class MainWindow : Window, IDisposable
                 loadedAliases[alias] = target;
             }
 
-            emoteAliases = loadedAliases;        }
+            emoteAliases = loadedAliases;
+
+        }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "[QA-EMOTE] Failed to load emote aliases from {Path}.", path);
@@ -622,7 +644,9 @@ internal sealed class MainWindow : Window, IDisposable
                 }
             }
             catch (Exception ex)
-            {            }
+            {
+
+            }
 
             emoteCommandIndex = index;
         }
@@ -638,7 +662,9 @@ internal sealed class MainWindow : Window, IDisposable
             return null;
 
         if (emoteCommandIndex.TryGetValue(targetCommand, out metadata))
-        {            return metadata;
+        {
+
+            return metadata;
         }
 
         Plugin.Log.Warning("[QA-EMOTE] Alias /{Alias} targets unknown Lumina command /{Target}.", normalizedCommand, targetCommand);
@@ -663,7 +689,9 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {        }
+        {
+
+        }
 
         emoteMetadataCache[emoteId] = metadata;
         return metadata;
@@ -859,7 +887,9 @@ internal sealed class MainWindow : Window, IDisposable
             if (uiModule == null)
                 throw new InvalidOperationException("The native UI module is unavailable.");
 
-            uiModule->ProcessChatBoxEntry(commandText);        }
+            uiModule->ProcessChatBoxEntry(commandText);
+
+        }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "[QA-SAY] Failed to submit required quest /say phrase for {QuestTitle}.", entry.QuestTitle);
@@ -1167,7 +1197,9 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {        }
+        {
+
+        }
 
         try
         {
@@ -1247,7 +1279,9 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {        }
+        {
+
+        }
 
         return distances;
     }
@@ -1417,7 +1451,9 @@ internal sealed class MainWindow : Window, IDisposable
         {
             ClearSelectionLocks();
             userSelectedAction = false;
-            UpdateAutomaticSelection();            return;
+            UpdateAutomaticSelection();
+
+            return;
         }
 
         ClearSelectionLocks();
@@ -1425,7 +1461,9 @@ internal sealed class MainWindow : Window, IDisposable
         selectedItemId = entry.ItemId;
         selectedEmoteKey = null;
         selectedSayKey = null;
-        userSelectedAction = true;    }
+        userSelectedAction = true;
+
+    }
 
     private void ToggleEmoteSelectionLock(QuestEmoteEntry entry)
     {
@@ -1434,7 +1472,9 @@ internal sealed class MainWindow : Window, IDisposable
         {
             ClearSelectionLocks();
             userSelectedAction = false;
-            UpdateAutomaticSelection();            return;
+            UpdateAutomaticSelection();
+
+            return;
         }
 
         ClearSelectionLocks();
@@ -1442,7 +1482,9 @@ internal sealed class MainWindow : Window, IDisposable
         selectedItemId = null;
         selectedEmoteKey = key;
         selectedSayKey = null;
-        userSelectedAction = true;    }
+        userSelectedAction = true;
+
+    }
 
     private void ToggleSaySelectionLock(QuestSayEntry entry)
     {
@@ -1450,7 +1492,9 @@ internal sealed class MainWindow : Window, IDisposable
         {
             ClearSelectionLocks();
             userSelectedAction = false;
-            UpdateAutomaticSelection();            return;
+            UpdateAutomaticSelection();
+
+            return;
         }
 
         ClearSelectionLocks();
@@ -1458,7 +1502,9 @@ internal sealed class MainWindow : Window, IDisposable
         selectedItemId = null;
         selectedEmoteKey = null;
         selectedSayKey = entry.Key;
-        userSelectedAction = true;    }
+        userSelectedAction = true;
+
+    }
 
     private void MaintainSelectionLock()
     {
@@ -1468,13 +1514,17 @@ internal sealed class MainWindow : Window, IDisposable
             if (lockedEntry is null)
             {
                 ClearSelectionLocks();
-                userSelectedAction = false;                return;
+                userSelectedAction = false;
+
+                return;
             }
 
             if (lockedEntry.QuestId != 0 && !IsQuestStillAccepted(lockedEntry.QuestId))
             {
                 ClearSelectionLocks();
-                userSelectedAction = false;                return;
+                userSelectedAction = false;
+
+                return;
             }
 
             selectedItemId = lockedId;
@@ -1487,7 +1537,9 @@ internal sealed class MainWindow : Window, IDisposable
             if (lockedEmote is null || (lockedEmote.QuestId != 0 && !IsQuestStillAccepted(lockedEmote.QuestId)))
             {
                 ClearSelectionLocks();
-                userSelectedAction = false;                return;
+                userSelectedAction = false;
+
+                return;
             }
             selectedItemId = null;
             selectedEmoteKey = lockedEmoteKey;
@@ -1501,7 +1553,9 @@ internal sealed class MainWindow : Window, IDisposable
             if (lockedSay is null || (lockedSay.QuestId != 0 && !IsQuestStillAccepted(lockedSay.QuestId)))
             {
                 ClearSelectionLocks();
-                userSelectedAction = false;                return;
+                userSelectedAction = false;
+
+                return;
             }
             selectedItemId = null;
             selectedEmoteKey = null;
@@ -1574,7 +1628,9 @@ internal sealed class MainWindow : Window, IDisposable
                     TrySendSay(target.Say);
                 }
                 else if (target.Emote is not null)
-                {                    TryPerformEmote(target.Emote);
+                {
+
+                    TryPerformEmote(target.Emote);
                 }
                 else if (target.Item is not null)
                 {
@@ -1597,13 +1653,17 @@ internal sealed class MainWindow : Window, IDisposable
             if (string.IsNullOrWhiteSpace(entry.Command) || !entry.Command.StartsWith('/'))
                 throw new InvalidOperationException($"Invalid game command for quest emote: '{entry.Command}'.");
 
+
+
             commandText = Utf8String.FromString(entry.Command);
             var uiModule = UIModule.Instance();
             if (uiModule == null)
                 throw new InvalidOperationException("The native UI module is unavailable.");
 
             uiModule->ProcessChatBoxEntry(commandText);
-            emoteCooldowns[entry.EmoteId] = now + EmoteCooldown;        }
+            emoteCooldowns[entry.EmoteId] = now + EmoteCooldown;
+
+        }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "[QA-EMOTE] Failed to execute native game command {Command}.", entry.Command);
@@ -1628,7 +1688,9 @@ internal sealed class MainWindow : Window, IDisposable
                     return;
                 }
 
-                agent->UseItem(entry.ItemId, (FFXIVClientStructs.FFXIV.Client.Game.InventoryType)entry.ContainerType, entry.Slot);            }
+                agent->UseItem(entry.ItemId, (FFXIVClientStructs.FFXIV.Client.Game.InventoryType)entry.ContainerType, entry.Slot);
+
+            }
         }
         catch (Exception ex)
         {
