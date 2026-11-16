@@ -335,14 +335,12 @@ internal sealed class MainWindow : Window, IDisposable
                     }
                     catch (Exception ex)
                     {
-
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-
         }
 
         RefreshLevequestEmoteButtons();
@@ -386,8 +384,6 @@ internal sealed class MainWindow : Window, IDisposable
                 var assignmentType = trackedQuest.LeveAssignmentType;
                 var leveTitle = trackedQuest.Name.ToString();
 
-
-
                 if (questId == 0 || assignmentType is not (1 or 13 or 14 or 15) ||
                     !IsQuestAllowedByZone(questId))
                     continue;
@@ -398,20 +394,17 @@ internal sealed class MainWindow : Window, IDisposable
                 var leve = leveSheet.GetRowOrDefault(questId);
                 if (!leve.HasValue)
                 {
-
                     continue;
                 }
 
                 var dataRef = leve.Value.DataId;
                 if (!dataRef.Is<BattleLeve>())
                 {
-
                     continue;
                 }
 
                 if (!dataRef.TryGetValue<BattleLeve>(out var battleLeve))
                 {
-
                     continue;
                 }
 
@@ -443,14 +436,12 @@ internal sealed class MainWindow : Window, IDisposable
                             leveTitle,
                             questId));
 
-
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-
         }
     }
 
@@ -519,7 +510,6 @@ internal sealed class MainWindow : Window, IDisposable
         }
         catch (Exception ex)
         {
-
         }
 
         questSayMessageCache[cacheKey] = results;
@@ -546,7 +536,6 @@ internal sealed class MainWindow : Window, IDisposable
         }
         catch (Exception ex)
         {
-
         }
 
         questRuntimeIdCache[questTitle] = runtimeQuestId;
@@ -603,7 +592,6 @@ internal sealed class MainWindow : Window, IDisposable
             }
 
             emoteAliases = loadedAliases;
-
         }
         catch (Exception ex)
         {
@@ -645,7 +633,6 @@ internal sealed class MainWindow : Window, IDisposable
             }
             catch (Exception ex)
             {
-
             }
 
             emoteCommandIndex = index;
@@ -663,7 +650,6 @@ internal sealed class MainWindow : Window, IDisposable
 
         if (emoteCommandIndex.TryGetValue(targetCommand, out metadata))
         {
-
             return metadata;
         }
 
@@ -690,7 +676,6 @@ internal sealed class MainWindow : Window, IDisposable
         }
         catch (Exception ex)
         {
-
         }
 
         emoteMetadataCache[emoteId] = metadata;
@@ -888,7 +873,6 @@ internal sealed class MainWindow : Window, IDisposable
                 throw new InvalidOperationException("The native UI module is unavailable.");
 
             uiModule->ProcessChatBoxEntry(commandText);
-
         }
         catch (Exception ex)
         {
@@ -1198,7 +1182,6 @@ internal sealed class MainWindow : Window, IDisposable
         }
         catch (Exception ex)
         {
-
         }
 
         try
@@ -1280,7 +1263,6 @@ internal sealed class MainWindow : Window, IDisposable
         }
         catch (Exception ex)
         {
-
         }
 
         return distances;
@@ -1435,7 +1417,6 @@ internal sealed class MainWindow : Window, IDisposable
                 ? $"{entry.Name}\nSelection locked — right-click to unlock"
                 : $"{entry.Name}\nRight-click to lock selection");
         ImGui.PopID();
-
     }
 
     private void ClearSelectionLocks()
@@ -1462,7 +1443,6 @@ internal sealed class MainWindow : Window, IDisposable
         selectedEmoteKey = null;
         selectedSayKey = null;
         userSelectedAction = true;
-
     }
 
     private void ToggleEmoteSelectionLock(QuestEmoteEntry entry)
@@ -1483,7 +1463,6 @@ internal sealed class MainWindow : Window, IDisposable
         selectedEmoteKey = key;
         selectedSayKey = null;
         userSelectedAction = true;
-
     }
 
     private void ToggleSaySelectionLock(QuestSayEntry entry)
@@ -1503,7 +1482,6 @@ internal sealed class MainWindow : Window, IDisposable
         selectedEmoteKey = null;
         selectedSayKey = entry.Key;
         userSelectedAction = true;
-
     }
 
     private void MaintainSelectionLock()
@@ -1629,7 +1607,6 @@ internal sealed class MainWindow : Window, IDisposable
                 }
                 else if (target.Emote is not null)
                 {
-
                     TryPerformEmote(target.Emote);
                 }
                 else if (target.Item is not null)
@@ -1653,8 +1630,6 @@ internal sealed class MainWindow : Window, IDisposable
             if (string.IsNullOrWhiteSpace(entry.Command) || !entry.Command.StartsWith('/'))
                 throw new InvalidOperationException($"Invalid game command for quest emote: '{entry.Command}'.");
 
-
-
             commandText = Utf8String.FromString(entry.Command);
             var uiModule = UIModule.Instance();
             if (uiModule == null)
@@ -1662,7 +1637,6 @@ internal sealed class MainWindow : Window, IDisposable
 
             uiModule->ProcessChatBoxEntry(commandText);
             emoteCooldowns[entry.EmoteId] = now + EmoteCooldown;
-
         }
         catch (Exception ex)
         {
@@ -1689,7 +1663,6 @@ internal sealed class MainWindow : Window, IDisposable
                 }
 
                 agent->UseItem(entry.ItemId, (FFXIVClientStructs.FFXIV.Client.Game.InventoryType)entry.ContainerType, entry.Slot);
-
             }
         }
         catch (Exception ex)
