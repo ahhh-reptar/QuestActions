@@ -305,8 +305,7 @@ internal sealed class MainWindow : Window, IDisposable
                                 !objectiveTexts.TryGetValue(todoIndex, out var objectiveText))
                                 continue;
 
-                            var sayPhrase = ResolveQuestSayMessage(questTitle, objectiveText);
-                            if (!string.IsNullOrWhiteSpace(sayPhrase))
+                            foreach (var sayPhrase in ResolveQuestSayMessages(questTitle, objectiveText))
                             {
                                 var sayKey = $"{runtimeQuestId}:{sayPhrase}";
                                 if (!questSayButtons.Any(x => x.Key == sayKey))
@@ -508,14 +507,14 @@ internal sealed class MainWindow : Window, IDisposable
         }
     }
 
-    private string? ResolveQuestSayMessage(string questTitle, string questDetail)
+    private List<string> ResolveQuestSayMessages(string questTitle, string questDetail)
     {
         var languageName = Plugin.ClientState.ClientLanguage.ToString();
         var cacheKey = questTitle + "\0" + questDetail + "\0" + languageName;
         if (questSayMessageCache.TryGetValue(cacheKey, out var cached))
-            return cached;
+            return string.IsNullOrWhiteSpace(cached) ? new List<string>() : new List<string> { cached };
 
-        string? result = null;
+        var results = new List<string>();
         try
         {
             var quest = Plugin.DataManager.GetExcelSheet<Quest>()
@@ -535,19 +534,37 @@ internal sealed class MainWindow : Window, IDisposable
                         _ => new Regex("“([^”]+)”", RegexOptions.Compiled),
                     };
 
-                    foreach (var dialogue in dialogueSheet)
-                    {
-                        var key = dialogue.Key.ToString();
-                        if (!Regex.IsMatch(key, "_(SAY|SAYTODO|SYSTEM)_") || dialogue.Value.IsEmpty)
-                            continue;
+                    var quotedPhrases = quoteRegex.Matches(questDetail)
+                        .Cast<Match>()
+                        .SelectMany(match => match.Groups.Cast<Group>().Skip(1))
+                        .Where(group => group.Success)
+                        .Select(group => group.Value)
+                        .ToList();
 
-                        var phrase = dialogue.Value.ToString();
-                        if (quoteRegex.Matches(questDetail).Cast<Match>()
-                            .SelectMany(m => m.Groups.Cast<Group>().Skip(1))
-                            .Any(g => g.Success && g.Value.Contains(phrase, StringComparison.Ordinal)))
+                    if (quotedPhrases.Count > 0)
+                    {
+                        var dialoguePhrases = dialogueSheet
+                            .Where(dialogue =>
+                            {
+                                var key = dialogue.Key.ToString();
+                                return Regex.IsMatch(key, "_(SAY|SAYTODO|SYSTEM)_") && !dialogue.Value.IsEmpty;
+                            })
+                            .Select(dialogue => dialogue.Value.ToString())
+                            .Where(phrase => !string.IsNullOrWhiteSpace(phrase))
+                            .Distinct(StringComparer.Ordinal)
+                            .ToList();
+
+                        // Preserve the order in which the quest asks the player to speak.
+                        foreach (var quoted in quotedPhrases)
                         {
-                            result = phrase;
-                            break;
+                            foreach (var phrase in dialoguePhrases)
+                            {
+                                if (quoted.Contains(phrase, StringComparison.Ordinal) &&
+                                    !results.Contains(phrase, StringComparer.Ordinal))
+                                {
+                                    results.Add(phrase);
+                                }
+                            }
                         }
                     }
                 }
@@ -555,11 +572,12 @@ internal sealed class MainWindow : Window, IDisposable
         }
         catch (Exception ex)
         {
-            Plugin.Log.Debug(ex, "QA could not resolve a required /say phrase for quest '{QuestTitle}'.", questTitle);
+            Plugin.Log.Debug(ex, "QA could not resolve required quest /say phrases for quest '{QuestTitle}'.", questTitle);
         }
 
-        questSayMessageCache[cacheKey] = result;
-        return result;
+        // The legacy cache stores one string; an empty value marks an unsuccessful lookup.
+        questSayMessageCache[cacheKey] = results.FirstOrDefault();
+        return results;
     }
 
     private uint ResolveQuestRuntimeId(string questTitle)
