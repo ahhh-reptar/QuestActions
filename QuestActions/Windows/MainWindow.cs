@@ -375,75 +375,96 @@ internal sealed class MainWindow : Window, IDisposable
                 questManager->NumAcceptedLeveQuests == 0)
                 return;
 
-            var battleLeveSheet = Plugin.DataManager.GetExcelSheet<BattleLeve>();
+            var leveSheet = Plugin.DataManager.GetExcelSheet<Leve>();
             var trackedQuests = uiState->QuestTodoList.Todo.TrackedQuests;
 
             for (var questIndex = 0; questIndex < trackedQuests.Count; questIndex++)
             {
                 ref var trackedQuest = ref trackedQuests[questIndex];
 
-                var leveDataId = trackedQuest.LeveDataId;
+                var questId = (uint)trackedQuest.QuestId;
+                var assignmentType = trackedQuest.LeveAssignmentType;
+                var leveTitle = trackedQuest.Name.ToString();
+
                 Plugin.Log.Debug(
-                    "[QA-LEVE] Active leve: '{Name}', QuestId={QuestId}, LeveDataId={LeveDataId}, AssignmentType={AssignmentType}",
-                    trackedQuest.Name.ToString(),
-                    trackedQuest.QuestId,
-                    trackedQuest.LeveDataId,
-                    trackedQuest.LeveAssignmentType);
-                if (leveDataId <= 0 || trackedQuest.LeveAssignmentType != 1)
+                    "[QA-LEVE] Active leve: '{Name}', QuestId={QuestId}, AssignmentType={AssignmentType}",
+                    leveTitle,
+                    questId,
+                    assignmentType);
+
+                if (questId == 0 || assignmentType is not (1 or 13 or 14 or 15))
                     continue;
 
-                var questId = (uint)trackedQuest.QuestId;
-                var leveTitle = trackedQuest.Name.ToString();
                 if (string.IsNullOrWhiteSpace(leveTitle))
-                    leveTitle = $"Battle leve {leveDataId}";
+                    leveTitle = $"Battle leve {questId}";
 
-                var battleLeve = battleLeveSheet.GetRowOrDefault((uint)leveDataId);
-                if (!battleLeve.HasValue)
+                var leve = leveSheet.GetRowOrDefault(questId);
+                if (!leve.HasValue)
                 {
                     Plugin.Log.Debug(
-                        "[QA-LEVE] Could not find BattleLeve row {LeveDataId} for active leve '{LeveTitle}' (tracked QuestId {QuestId}).",
-                        leveDataId,
-                        leveTitle,
-                        questId);
+                        "[QA-LEVE] Could not find Leve row {QuestId} for active battle leve '{LeveTitle}'.",
+                        questId,
+                        leveTitle);
                     continue;
                 }
 
-                foreach (var objectiveRef in battleLeve.Value.Objectives)
+                var dataRef = leve.Value.DataId;
+                if (!dataRef.Is<BattleLeve>())
                 {
-                    if (objectiveRef.RowId == 0 ||
-                        !objectiveRef.TryGetValue(out var leveString))
+                    Plugin.Log.Debug(
+                        "[QA-LEVE] Leve row {QuestId} for '{LeveTitle}' points to {TargetSheet} row {DataId}, not BattleLeve.",
+                        questId,
+                        leveTitle,
+                        dataRef.RowType?.Name ?? "an unknown sheet",
+                        dataRef.RowId);
+                    continue;
+                }
+
+                if (!dataRef.TryGetValue<BattleLeve>(out var battleLeve))
+                {
+                    Plugin.Log.Debug(
+                        "[QA-LEVE] Could not load BattleLeve row {DataId} referenced by Leve row {QuestId} ('{LeveTitle}').",
+                        dataRef.RowId,
+                        questId,
+                        leveTitle);
+                    continue;
+                }
+
+                var objectiveRef = battleLeve.Objectives[0];
+                if (objectiveRef.RowId == 0 ||
+                    !objectiveRef.TryGetValue(out var leveString))
+                    continue;
+
+                var objectiveText = leveString.Objective.ToString();
+                if (string.IsNullOrWhiteSpace(objectiveText))
+                    continue;
+
+                foreach (Match match in SlashCommandRegex.Matches(objectiveText))
+                {
+                    var command = match.Groups[1].Value;
+                    var emote = ResolveEmoteByCommand(command);
+                    if (emote == null)
                         continue;
 
-                    var objectiveText = leveString.Objective.ToString();
-                    if (string.IsNullOrWhiteSpace(objectiveText))
-                        continue;
-
-                    foreach (Match match in SlashCommandRegex.Matches(objectiveText))
+                    if (!questEmoteButtons.Any(x =>
+                        x.QuestTitle == leveTitle &&
+                        string.Equals(x.Command, emote.Command, StringComparison.OrdinalIgnoreCase)))
                     {
-                        var command = match.Groups[1].Value;
-                        var emote = ResolveEmoteByCommand(command);
-                        if (emote == null)
-                            continue;
+                        questEmoteButtons.Add(new QuestEmoteEntry(
+                            emote.EmoteId,
+                            emote.IconId,
+                            emote.Command,
+                            emote.Name,
+                            leveTitle,
+                            questId));
 
-                        if (!questEmoteButtons.Any(x =>
-                            x.QuestTitle == leveTitle &&
-                            string.Equals(x.Command, emote.Command, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            questEmoteButtons.Add(new QuestEmoteEntry(
-                                emote.EmoteId,
-                                emote.IconId,
-                                emote.Command,
-                                emote.Name,
-                                leveTitle,
-                                questId));
-
-                            Plugin.Log.Debug(
-                                "[QA-LEVE] Found emote objective {Command} for battle leve '{LeveTitle}' (BattleLeve {LeveDataId}, LeveString {LeveStringId}).",
-                                emote.Command,
-                                leveTitle,
-                                leveDataId,
-                                objectiveRef.RowId);
-                        }
+                        Plugin.Log.Debug(
+                            "[QA-LEVE] Found emote objective {Command} for battle leve '{LeveTitle}' (Leve {QuestId}, BattleLeve {BattleLeveId}, LeveString {LeveStringId}).",
+                            emote.Command,
+                            leveTitle,
+                            questId,
+                            dataRef.RowId,
+                            objectiveRef.RowId);
                     }
                 }
             }
