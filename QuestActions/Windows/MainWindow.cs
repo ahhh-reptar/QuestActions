@@ -333,13 +333,13 @@ internal sealed class MainWindow : Window, IDisposable
                             }
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                     }
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
         }
 
@@ -440,7 +440,7 @@ internal sealed class MainWindow : Window, IDisposable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
         }
     }
@@ -508,7 +508,7 @@ internal sealed class MainWindow : Window, IDisposable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
         }
 
@@ -534,7 +534,7 @@ internal sealed class MainWindow : Window, IDisposable
                 break;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
         }
 
@@ -631,7 +631,7 @@ internal sealed class MainWindow : Window, IDisposable
                         string.IsNullOrWhiteSpace(name) ? resolvedCommand : name));
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
 
@@ -674,7 +674,7 @@ internal sealed class MainWindow : Window, IDisposable
                     metadata = new EmoteMetadata(command, string.IsNullOrWhiteSpace(name) ? command : name);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
         }
 
@@ -1180,7 +1180,7 @@ internal sealed class MainWindow : Window, IDisposable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
         }
 
@@ -1261,7 +1261,7 @@ internal sealed class MainWindow : Window, IDisposable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
         }
 
