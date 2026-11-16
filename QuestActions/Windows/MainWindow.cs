@@ -334,16 +334,12 @@ internal sealed class MainWindow : Window, IDisposable
                         }
                     }
                     catch (Exception ex)
-                    {
-                        Plugin.Log.Debug(ex, "QA could not inspect quest text sheet {SheetName} for active quest {QuestId}.", textSheetName, runtimeQuestId);
-                    }
+                    {                    }
                 }
             }
         }
         catch (Exception ex)
-        {
-            Plugin.Log.Debug(ex, "QA could not discover emote objectives from accepted quests.");
-        }
+        {        }
 
         RefreshLevequestEmoteButtons();
 
@@ -386,12 +382,6 @@ internal sealed class MainWindow : Window, IDisposable
                 var assignmentType = trackedQuest.LeveAssignmentType;
                 var leveTitle = trackedQuest.Name.ToString();
 
-                Plugin.Log.Debug(
-                    "[QA-LEVE] Active leve: '{Name}', QuestId={QuestId}, AssignmentType={AssignmentType}",
-                    leveTitle,
-                    questId,
-                    assignmentType);
-
                 if (questId == 0 || assignmentType is not (1 or 13 or 14 or 15) ||
                     !IsQuestAllowedByZone(questId))
                     continue;
@@ -401,34 +391,16 @@ internal sealed class MainWindow : Window, IDisposable
 
                 var leve = leveSheet.GetRowOrDefault(questId);
                 if (!leve.HasValue)
-                {
-                    Plugin.Log.Debug(
-                        "[QA-LEVE] Could not find Leve row {QuestId} for active battle leve '{LeveTitle}'.",
-                        questId,
-                        leveTitle);
-                    continue;
+                {                    continue;
                 }
 
                 var dataRef = leve.Value.DataId;
                 if (!dataRef.Is<BattleLeve>())
-                {
-                    Plugin.Log.Debug(
-                        "[QA-LEVE] Leve row {QuestId} for '{LeveTitle}' points to {TargetSheet} row {DataId}, not BattleLeve.",
-                        questId,
-                        leveTitle,
-                        dataRef.RowType?.Name ?? "an unknown sheet",
-                        dataRef.RowId);
-                    continue;
+                {                    continue;
                 }
 
                 if (!dataRef.TryGetValue<BattleLeve>(out var battleLeve))
-                {
-                    Plugin.Log.Debug(
-                        "[QA-LEVE] Could not load BattleLeve row {DataId} referenced by Leve row {QuestId} ('{LeveTitle}').",
-                        dataRef.RowId,
-                        questId,
-                        leveTitle);
-                    continue;
+                {                    continue;
                 }
 
                 var objectiveRef = battleLeve.Objectives[0];
@@ -458,22 +430,12 @@ internal sealed class MainWindow : Window, IDisposable
                             emote.Name,
                             leveTitle,
                             questId));
-
-                        Plugin.Log.Debug(
-                            "[QA-LEVE] Found emote objective {Command} for battle leve '{LeveTitle}' (Leve {QuestId}, BattleLeve {BattleLeveId}, LeveString {LeveStringId}).",
-                            emote.Command,
-                            leveTitle,
-                            questId,
-                            dataRef.RowId,
-                            objectiveRef.RowId);
                     }
                 }
             }
         }
         catch (Exception ex)
-        {
-            Plugin.Log.Debug(ex, "[QA-LEVE] Could not discover emote objectives from active battle leves.");
-        }
+        {        }
     }
 
     private List<string> ResolveQuestSayMessages(string questTitle, string questDetail)
@@ -540,9 +502,7 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {
-            Plugin.Log.Debug(ex, "QA could not resolve required quest /say phrases for quest '{QuestTitle}'.", questTitle);
-        }
+        {        }
 
         questSayMessageCache[cacheKey] = results;
         return results;
@@ -567,9 +527,7 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {
-            Plugin.Log.Debug(ex, "QA could not resolve native quest title '{QuestTitle}' to a quest ID.", questTitle);
-        }
+        {        }
 
         questRuntimeIdCache[questTitle] = runtimeQuestId;
         return runtimeQuestId;
@@ -624,9 +582,7 @@ internal sealed class MainWindow : Window, IDisposable
                 loadedAliases[alias] = target;
             }
 
-            emoteAliases = loadedAliases;
-            Plugin.Log.Debug("[QA-EMOTE] Loaded {AliasCount} emote command aliases.", emoteAliases.Count);
-        }
+            emoteAliases = loadedAliases;        }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "[QA-EMOTE] Failed to load emote aliases from {Path}.", path);
@@ -666,9 +622,7 @@ internal sealed class MainWindow : Window, IDisposable
                 }
             }
             catch (Exception ex)
-            {
-                Plugin.Log.Debug(ex, "QA could not build the Lumina emote-command index.");
-            }
+            {            }
 
             emoteCommandIndex = index;
         }
@@ -684,9 +638,7 @@ internal sealed class MainWindow : Window, IDisposable
             return null;
 
         if (emoteCommandIndex.TryGetValue(targetCommand, out metadata))
-        {
-            Plugin.Log.Debug("[QA-EMOTE] Resolved /{Alias} through alias /{Target}.", normalizedCommand, targetCommand);
-            return metadata;
+        {            return metadata;
         }
 
         Plugin.Log.Warning("[QA-EMOTE] Alias /{Alias} targets unknown Lumina command /{Target}.", normalizedCommand, targetCommand);
@@ -711,9 +663,7 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {
-            Plugin.Log.Debug(ex, "QA could not resolve emote row {EmoteId} from Lumina.", emoteId);
-        }
+        {        }
 
         emoteMetadataCache[emoteId] = metadata;
         return metadata;
@@ -909,9 +859,7 @@ internal sealed class MainWindow : Window, IDisposable
             if (uiModule == null)
                 throw new InvalidOperationException("The native UI module is unavailable.");
 
-            uiModule->ProcessChatBoxEntry(commandText);
-            Plugin.Log.Information("[QA-CHAT] Submitted quest command {Command} for {QuestTitle}.", entry.Command, entry.QuestTitle);
-        }
+            uiModule->ProcessChatBoxEntry(commandText);        }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "[QA-SAY] Failed to submit required quest /say phrase for {QuestTitle}.", entry.QuestTitle);
@@ -1219,9 +1167,7 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {
-            Plugin.Log.Debug(ex, "QA could not resolve native quest objective distances.");
-        }
+        {        }
 
         try
         {
@@ -1301,9 +1247,7 @@ internal sealed class MainWindow : Window, IDisposable
             }
         }
         catch (Exception ex)
-        {
-            Plugin.Log.Debug(ex, "QA could not resolve battle leve start zones or distances.");
-        }
+        {        }
 
         return distances;
     }
@@ -1473,9 +1417,7 @@ internal sealed class MainWindow : Window, IDisposable
         {
             ClearSelectionLocks();
             userSelectedAction = false;
-            UpdateAutomaticSelection();
-            Plugin.Log.Information("[QA] Selection unlocked; automatic selection resumed.");
-            return;
+            UpdateAutomaticSelection();            return;
         }
 
         ClearSelectionLocks();
@@ -1483,9 +1425,7 @@ internal sealed class MainWindow : Window, IDisposable
         selectedItemId = entry.ItemId;
         selectedEmoteKey = null;
         selectedSayKey = null;
-        userSelectedAction = true;
-        Plugin.Log.Information("[QA] Selection locked to item {Name} (ID {ItemId}).", entry.Name, entry.ItemId);
-    }
+        userSelectedAction = true;    }
 
     private void ToggleEmoteSelectionLock(QuestEmoteEntry entry)
     {
@@ -1494,9 +1434,7 @@ internal sealed class MainWindow : Window, IDisposable
         {
             ClearSelectionLocks();
             userSelectedAction = false;
-            UpdateAutomaticSelection();
-            Plugin.Log.Information("[QA] Emote selection unlocked; automatic selection resumed.");
-            return;
+            UpdateAutomaticSelection();            return;
         }
 
         ClearSelectionLocks();
@@ -1504,9 +1442,7 @@ internal sealed class MainWindow : Window, IDisposable
         selectedItemId = null;
         selectedEmoteKey = key;
         selectedSayKey = null;
-        userSelectedAction = true;
-        Plugin.Log.Information("[QA] Selection locked to emote {Command} for quest {QuestTitle}.", entry.Command, entry.QuestTitle);
-    }
+        userSelectedAction = true;    }
 
     private void ToggleSaySelectionLock(QuestSayEntry entry)
     {
@@ -1514,9 +1450,7 @@ internal sealed class MainWindow : Window, IDisposable
         {
             ClearSelectionLocks();
             userSelectedAction = false;
-            UpdateAutomaticSelection();
-            Plugin.Log.Information("[QA] Chat-action selection unlocked; automatic selection resumed.");
-            return;
+            UpdateAutomaticSelection();            return;
         }
 
         ClearSelectionLocks();
@@ -1524,9 +1458,7 @@ internal sealed class MainWindow : Window, IDisposable
         selectedItemId = null;
         selectedEmoteKey = null;
         selectedSayKey = entry.Key;
-        userSelectedAction = true;
-        Plugin.Log.Information("[QA] Selection locked to chat action for quest {QuestTitle}.", entry.QuestTitle);
-    }
+        userSelectedAction = true;    }
 
     private void MaintainSelectionLock()
     {
@@ -1536,17 +1468,13 @@ internal sealed class MainWindow : Window, IDisposable
             if (lockedEntry is null)
             {
                 ClearSelectionLocks();
-                userSelectedAction = false;
-                Plugin.Log.Information("[QA] Selection lock released because the item is no longer available.");
-                return;
+                userSelectedAction = false;                return;
             }
 
             if (lockedEntry.QuestId != 0 && !IsQuestStillAccepted(lockedEntry.QuestId))
             {
                 ClearSelectionLocks();
-                userSelectedAction = false;
-                Plugin.Log.Information("[QA] Selection lock released because the associated quest is no longer active: {Name} (ID {ItemId}).", lockedEntry.Name, lockedEntry.ItemId);
-                return;
+                userSelectedAction = false;                return;
             }
 
             selectedItemId = lockedId;
@@ -1559,9 +1487,7 @@ internal sealed class MainWindow : Window, IDisposable
             if (lockedEmote is null || (lockedEmote.QuestId != 0 && !IsQuestStillAccepted(lockedEmote.QuestId)))
             {
                 ClearSelectionLocks();
-                userSelectedAction = false;
-                Plugin.Log.Information("[QA] Emote selection lock released because its quest action is no longer available.");
-                return;
+                userSelectedAction = false;                return;
             }
             selectedItemId = null;
             selectedEmoteKey = lockedEmoteKey;
@@ -1575,9 +1501,7 @@ internal sealed class MainWindow : Window, IDisposable
             if (lockedSay is null || (lockedSay.QuestId != 0 && !IsQuestStillAccepted(lockedSay.QuestId)))
             {
                 ClearSelectionLocks();
-                userSelectedAction = false;
-                Plugin.Log.Information("[QA] Chat-action selection lock released because its quest action is no longer available.");
-                return;
+                userSelectedAction = false;                return;
             }
             selectedItemId = null;
             selectedEmoteKey = null;
@@ -1650,9 +1574,7 @@ internal sealed class MainWindow : Window, IDisposable
                     TrySendSay(target.Say);
                 }
                 else if (target.Emote is not null)
-                {
-                    Plugin.Log.Debug("[QA-EMOTE] Configured key pressed; ordered priority command={Command}, quest={QuestTitle}.", target.Emote.Command, target.Emote.QuestTitle);
-                    TryPerformEmote(target.Emote);
+                {                    TryPerformEmote(target.Emote);
                 }
                 else if (target.Item is not null)
                 {
@@ -1675,17 +1597,13 @@ internal sealed class MainWindow : Window, IDisposable
             if (string.IsNullOrWhiteSpace(entry.Command) || !entry.Command.StartsWith('/'))
                 throw new InvalidOperationException($"Invalid game command for quest emote: '{entry.Command}'.");
 
-            Plugin.Log.Information("[QA-EMOTE] Executing command {Command} for quest {QuestTitle} (emote row {EmoteId}).", entry.Command, entry.QuestTitle, entry.EmoteId);
-
             commandText = Utf8String.FromString(entry.Command);
             var uiModule = UIModule.Instance();
             if (uiModule == null)
                 throw new InvalidOperationException("The native UI module is unavailable.");
 
             uiModule->ProcessChatBoxEntry(commandText);
-            emoteCooldowns[entry.EmoteId] = now + EmoteCooldown;
-            Plugin.Log.Information("[QA-EMOTE] Submitted native game command: {Command} for {QuestTitle}.", entry.Command, entry.QuestTitle);
-        }
+            emoteCooldowns[entry.EmoteId] = now + EmoteCooldown;        }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "[QA-EMOTE] Failed to execute native game command {Command}.", entry.Command);
@@ -1710,9 +1628,7 @@ internal sealed class MainWindow : Window, IDisposable
                     return;
                 }
 
-                agent->UseItem(entry.ItemId, (FFXIVClientStructs.FFXIV.Client.Game.InventoryType)entry.ContainerType, entry.Slot);
-                Plugin.Log.Information("Requested use of key item {Name} (ID {ItemId}, slot {Slot}).", entry.Name, entry.ItemId, entry.Slot);
-            }
+                agent->UseItem(entry.ItemId, (FFXIVClientStructs.FFXIV.Client.Game.InventoryType)entry.ContainerType, entry.Slot);            }
         }
         catch (Exception ex)
         {
