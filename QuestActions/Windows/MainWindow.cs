@@ -4,6 +4,8 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.IO;
+using System.Text.Json;
 using FFXIVClientStructs.FFXIV.Client.System.String;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -35,6 +37,7 @@ internal sealed class MainWindow : Window, IDisposable
     private readonly List<QuestSayEntry> questSayButtons = new();
     private readonly Dictionary<uint, EmoteMetadata?> emoteMetadataCache = new();
     private Dictionary<string, EmoteCommandMetadata>? emoteCommandIndex;
+    private Dictionary<string, string> emoteAliases = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, uint> questRuntimeIdCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> questSayMessageCache = new(StringComparer.Ordinal);
     private readonly Dictionary<uint, Dictionary<int, string>> questObjectiveTextCache = new();
@@ -71,6 +74,7 @@ internal sealed class MainWindow : Window, IDisposable
     {
         this.configuration = configuration;
         this.openSettings = openSettings;
+        LoadEmoteAliases();
         RespectCloseHotkey = false;
         Position = new Vector2(100, 350);
         PositionCondition = ImGuiCond.FirstUseEver;
@@ -585,6 +589,64 @@ internal sealed class MainWindow : Window, IDisposable
         return runtimeQuestId;
     }
 
+    private static string NormalizeEmoteCommand(string command)
+    {
+        return command.Trim().TrimStart('/').ToLowerInvariant();
+    }
+
+    private void LoadEmoteAliases()
+    {
+        var path = Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "emote-aliases.json");
+
+        try
+        {
+            if (!File.Exists(path))
+            {
+                var defaults = new
+                {
+                    aliases = new Dictionary<string, string>
+                    {
+                        ["sundropdance"] = "sundance",
+                    },
+                };
+
+                File.WriteAllText(path, JsonSerializer.Serialize(defaults, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                }));
+            }
+
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            if (!document.RootElement.TryGetProperty("aliases", out var aliasesElement) ||
+                aliasesElement.ValueKind != JsonValueKind.Object)
+            {
+                Plugin.Log.Warning("[QA-EMOTE] The emote alias file does not contain a valid aliases object: {Path}", path);
+                return;
+            }
+
+            var loadedAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in aliasesElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind != JsonValueKind.String)
+                    continue;
+
+                var alias = NormalizeEmoteCommand(property.Name);
+                var target = NormalizeEmoteCommand(property.Value.GetString() ?? string.Empty);
+                if (alias.Length == 0 || target.Length == 0 || alias == target)
+                    continue;
+
+                loadedAliases[alias] = target;
+            }
+
+            emoteAliases = loadedAliases;
+            Plugin.Log.Debug("[QA-EMOTE] Loaded {AliasCount} emote command aliases.", emoteAliases.Count);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error(ex, "[QA-EMOTE] Failed to load emote aliases from {Path}.", path);
+        }
+    }
+
     private EmoteCommandMetadata? ResolveEmoteByCommand(string command)
     {
         if (string.IsNullOrWhiteSpace(command))
@@ -613,7 +675,7 @@ internal sealed class MainWindow : Window, IDisposable
                     }
 
                     var name = row.Name.ToString();
-                    index.TryAdd(resolvedCommand, new EmoteCommandMetadata(row.RowId, iconId, resolvedCommand,
+                    index.TryAdd(NormalizeEmoteCommand(resolvedCommand), new EmoteCommandMetadata(row.RowId, iconId, resolvedCommand,
                         string.IsNullOrWhiteSpace(name) ? resolvedCommand : name));
                 }
             }
@@ -625,7 +687,24 @@ internal sealed class MainWindow : Window, IDisposable
             emoteCommandIndex = index;
         }
 
-        return emoteCommandIndex.TryGetValue(command.Trim(), out var metadata) ? metadata : null;
+        var normalizedCommand = NormalizeEmoteCommand(command);
+
+        // Prefer the command explicitly linked by Lumina.
+        if (emoteCommandIndex.TryGetValue(normalizedCommand, out var metadata))
+            return metadata;
+
+        // Aliases are a fallback only; they never override a real Lumina command.
+        if (!emoteAliases.TryGetValue(normalizedCommand, out var targetCommand))
+            return null;
+
+        if (emoteCommandIndex.TryGetValue(targetCommand, out metadata))
+        {
+            Plugin.Log.Debug("[QA-EMOTE] Resolved /{Alias} through alias /{Target}.", normalizedCommand, targetCommand);
+            return metadata;
+        }
+
+        Plugin.Log.Warning("[QA-EMOTE] Alias /{Alias} targets unknown Lumina command /{Target}.", normalizedCommand, targetCommand);
+        return null;
     }
 
     private EmoteMetadata? ResolveEmoteMetadata(uint emoteId)
